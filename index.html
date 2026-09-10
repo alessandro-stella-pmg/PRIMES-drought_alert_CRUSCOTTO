@@ -394,6 +394,18 @@
 </div>
 
 <script>
+    // --- Dove sta il backend ------------------------------------------------
+    // Pubblicato su Firebase Hosting: i rewrite mandano /api/** a Cloud Run,
+    // quindi stessa origine e percorso relativo.
+    // Aperto in locale per prove: si punta direttamente a Cloud Run. In quel
+    // caso l'origine locale dev'essere fra quelle ammesse da CORS_ORIGINS sul
+    // servizio, altrimenti il browser blocca ogni chiamata.
+    const API_BASE = (function () {
+        const h = location.hostname;
+        const inLocale = h === "localhost" || h === "127.0.0.1" || location.protocol === "file:";
+        return inLocale ? "https://primes-backend-225520625301.europe-west8.run.app" : "";
+    })();
+
     let currentActionType = "";
     let pendingLevelText = "", pendingLevelColor = "", pendingLevelIcon = "", pendingLevelKey = "";
 
@@ -415,7 +427,7 @@
         btn.disabled = true; btn.innerText = "Accesso...";
         err.classList.add("d-none");
         try {
-            const res = await fetch("/api/auth/login", {
+            const res = await fetch(API_BASE + "/api/auth/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -472,7 +484,7 @@
     async function refreshLevel() {
         if (!currentAreaId) return;
         try {
-            const res = await fetch("/api/areas/" + currentAreaId + "/alert-level");
+            const res = await fetch(API_BASE + "/api/areas/" + currentAreaId + "/alert-level");
             const data = await res.json();
             if (!res.ok) return;
             const lv = data.alertLevel || {};
@@ -491,7 +503,7 @@
     (async function bootstrap() {
         if (!authToken) return;
         try {
-            const res = await fetch("/api/auth/me", { headers: authHeaders() });
+            const res = await fetch(API_BASE + "/api/auth/me", { headers: authHeaders() });
             const data = await res.json();
             if (!res.ok) throw new Error();
             currentAdmin = data.admin;
@@ -685,7 +697,7 @@
 
     async function sendAlertLevelBackend(level, colorHex, key) {
         if (!currentAreaId) throw new Error('Nessuna area pilota selezionata.');
-        const response = await fetch('/api/areas/' + currentAreaId + '/alert-level', {
+        const response = await fetch(API_BASE + '/api/areas/' + currentAreaId + '/alert-level', {
             method: 'PUT',
             headers: authHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ level, colorHex, key }),
@@ -709,7 +721,7 @@
         if (payload.attachFile) form.append('attachment', payload.attachFile);
         if (payload.targetFile) form.append('recipients', payload.targetFile);
 
-        const response = await fetch('/api/areas/' + currentAreaId + '/notifications', {
+        const response = await fetch(API_BASE + '/api/areas/' + currentAreaId + '/notifications', {
             method: 'POST',
             headers: authHeaders(),   // niente Content-Type: lo mette il browser
             body: form,
