@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRIMES Mobile Receiver</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #f4f6f9;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        .receiver-card {
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+        }
+        .status-dot {
+            width: 12px; height: 12px;
+            border-radius: 50%; display: inline-block; margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="container py-4">
+    <div class="text-center mb-4">
+        <h2 class="fw-bold">PRIMES Mobile Receiver</h2>
+        <p class="text-muted">Open this page on your phone and keep it active to receive the live demo alerts.</p>
+    </div>
+
+    <div class="card receiver-card p-4 mb-4 bg-white">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <div>
+                <span class="status-dot bg-secondary" id="conn-status-dot"></span>
+                <strong id="conn-status-text">Connecting...</strong>
+            </div>
+            <span class="badge bg-info bg-opacity-15 text-info">Live receiver</span>
+        </div>
+            <div class="small text-muted mb-2">If the connection fails, verify the PC IP and hotspot network.</div>
+            <div class="small text-secondary" id="last-event-text">Waiting for notifications...</div>
+    const notificationsContainer = document.getElementById('notifications');
+
+    const wsUrl = `ws://${window.location.hostname}:${window.location.port}`;
+    const socket = new WebSocket(wsUrl);
+
+    socket.addEventListener('open', () => {
+        statusDot.className = 'status-dot bg-success';
+        statusText.innerText = 'Connected';
+        document.getElementById('last-event-text').innerText = 'Connected to backend. Waiting for notifications...';
+        console.log('[client] WebSocket connected');
+    });
+
+    socket.addEventListener('message', event => {
+        console.log('[client] WebSocket message', event.data);
+        const payload = JSON.parse(event.data);
+        if (payload.event === 'notification') {
+            addNotificationCard(payload.data);
+        }
+    });
+
+    socket.addEventListener('close', () => {
+        statusDot.className = 'status-dot bg-danger';
+        statusText.innerText = 'Disconnected';
+    });
+
+    socket.addEventListener('error', () => {
+        statusDot.className = 'status-dot bg-danger';
+        statusText.innerText = 'Connection error';
+    });
+
+    function addNotificationCard(data) {
+        const card = document.createElement('div');
+        card.className = 'col-12';
+        document.getElementById('last-event-text').innerText = `Last received: ${escapeHtml(data.title)}`;
+        card.innerHTML = `
+            <div class="card p-3 bg-white shadow-sm rounded-4">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h5 class="fw-bold mb-1">${escapeHtml(data.title)}</h5>
+                        <small class="text-uppercase text-muted">${escapeHtml(data.type)} • ${new Date(data.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                    </div>
+                    <span class="badge bg-${data.type === 'emergency' ? 'danger' : 'primary'} text-white text-uppercase">${escapeHtml(data.type)}</span>
+                </div>
+                <p class="mb-2 text-muted">${escapeHtml(data.message)}</p>
+                <div class="small text-secondary">Target: ${escapeHtml(data.target || 'all')}</div>
+            </div>
+        `;
+        notificationsContainer.prepend(card);
+        if (window.Notification && Notification.permission === 'granted') {
+            new Notification(data.title, { body: data.message });
+        } else if (window.Notification && Notification.permission !== 'denied') {
+            Notification.requestPermission();
+        }
+    }
+
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRIMES - Cruscotto di Amministrazione</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        /* --- SIDEBAR --- */
+        .sidebar {
+            height: 100vh;
+            background-color: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            position: fixed; top: 0; left: 0; width: 260px; padding-top: 30px;
+            z-index: 1000;
+        }
+
+        /* --- MAIN CONTENT --- */
+        .main-content { margin-left: 260px; padding: 40px; }
+
+        /* --- NAVIGATION --- */
+        .nav-link {
+            color: #555; font-weight: 500; margin-bottom: 8px; padding: 15px 25px;
+            display: flex; align-items: center; cursor: pointer; transition: all 0.2s;
+        }
+        .nav-link:hover { background-color: #f8f9fa; color: #005BB5; }
+        .nav-link.active { background-color: #e9f2ff; color: #005BB5; border-right: 5px solid #005BB5; }
+        .nav-link .material-icons { margin-right: 15px; }
+
+        /* --- CARDS & INTERACTIONS --- */
+        .card-alert { border: none; border-radius: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.05); }
+
+        .level-card {
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            cursor: pointer; border-radius: 15px;
+        }
+        .level-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1) !important;
+        }
+
+        /* Drop Zone Style */
+        .drop-zone {
+            border: 2px dashed #cbd5e1; border-radius: 15px; padding: 15px;
+            text-align: center; background-color: #f8fafc; cursor: pointer; transition: all 0.3s;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%;
+        }
+        .drop-zone:hover { border-color: #005BB5; background-color: #eef6fc; }
+        .drop-zone.danger:hover { border-color: #dc3545; background-color: #fff5f5; }
+        .drop-zone.file-loaded { border-color: #4CAF50; background-color: #f0fdf4; border-style: solid; }
+
+        /* --- MODAL STYLE --- */
+        .custom-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: none;
+            justify-content: center; align-items: center; z-index: 2000;
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        .custom-modal-box {
+            background: white; width: 90%; max-width: 480px;
+            border-radius: 24px; padding: 40px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+            text-align: center;
+            transform: scale(0.9);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes popIn { to { transform: scale(1); } }
+
+        .btn-modal { padding: 12px 30px; border-radius: 12px; font-weight: 600; border: none; transition: transform 0.1s; }
+        .btn-modal:active { transform: scale(0.96); }
+        .btn-cancel { background-color: #f1f5f9; color: #64748b; margin-right: 15px; }
+        .btn-cancel:hover { background-color: #e2e8f0; color: #334155; }
+
+        .btn-confirm-level { background-color: #FF9800; color: white; box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3); }
+        .btn-confirm-comm { background-color: #005BB5; color: white; box-shadow: 0 4px 12px rgba(0, 91, 181, 0.3); }
+        .btn-confirm-emerg { background-color: #D32F2F; color: white; box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3); }
+
+        /* --- TOAST STYLE --- */
+        .toast-notification {
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%) translateY(100px);
+            background-color: #1e293b; color: white; padding: 16px 32px;
+            border-radius: 50px; box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            display: flex; align-items: center; z-index: 3000;
+            opacity: 0; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .toast-notification.error { background-color: #dc3545; }
+        .toast-notification.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN OPERATORE -->
+<div id="login-overlay" style="position:fixed; inset:0; z-index:3000; background:#0D47A1;
+     display:flex; align-items:center; justify-content:center;">
+  <div style="background:#fff; padding:44px; border-radius:20px; width:380px; max-width:92vw;
+       box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div class="text-center mb-4">
+      <img src="img/PRIMES_MAP.png" alt="PRIMES" style="height:70px; object-fit:contain;">
+    </div>
+    <h5 class="fw-bold text-center mb-1">Cruscotto operatore</h5>
+    <p class="text-muted text-center small mb-4">Accedi per gestire la tua area pilota</p>
+    <form onsubmit="doLogin(event)">
+      <input id="login-user" class="form-control form-control-lg bg-light border-0 mb-3"
+             placeholder="Nome utente" autocomplete="username" required>
+      <input id="login-pass" type="password" class="form-control form-control-lg bg-light border-0 mb-3"
+             placeholder="Password" autocomplete="current-password" required>
+      <div id="login-error" class="alert alert-danger py-2 small d-none"></div>
+      <button class="btn btn-primary btn-lg w-100 py-3" style="background-color:#005BB5;"
+              id="login-btn" type="submit">ACCEDI</button>
+    </form>
+  </div>
+</div>
+
+<div class="sidebar d-flex flex-column">
+    <div class="text-center mb-5">
+        <img src="img/PRIMES_MAP.png" alt="Logo" style="height: 90px; object-fit: contain;">
+    </div>
+
+    <nav class="nav flex-column">
+        <div class="nav-link active" onclick="showSection('livelli', this)">
+            <span class="material-icons">dashboard</span> Gestione livelli
+        </div>
+        <div class="nav-link" onclick="showSection('comunicazioni', this)">
+            <span class="material-icons">send</span> Comunicazioni
+        </div>
+        <div class="nav-link" onclick="showSection('emergenze', this)">
+            <span class="material-icons">warning_amber</span> Emergenze
+        </div>
+    </nav>
+
+    <div class="px-3 mt-4">
+        <label class="form-label small fw-bold text-secondary text-uppercase">Area pilota</label>
+        <select id="area-select" class="form-select form-select-sm" onchange="onAreaChange()"></select>
+        <div class="small text-muted mt-2" id="admin-label"></div>
+        <button class="btn btn-sm btn-outline-secondary w-100 mt-2" onclick="doLogout()">Esci</button>
+    </div>
+
+    <div class="mt-auto p-4 text-center">
+        <img src="img/Logo_ interreg_PRIMES.png" alt="Logo Interreg PRIMES" style="max-width: 100%; height: auto; object-fit: contain;">
+    </div>
+</div>
+
+<div class="main-content">
+
+    <!-- SEZIONE: GESTIONE LIVELLI -->
+    <div id="section-livelli">
+        <div class="d-flex justify-content-between align-items-center mb-5">
+            <div>
+                <h2 class="fw-bold m-0 text-dark">Gestione livello di allerta</h2>
+                <p class="text-muted m-0">Monitoraggio e controllo in tempo reale dello stato idrico</p>
+            </div>
+            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 rounded-pill border border-success border-opacity-25">
+                <span class="material-icons align-middle" style="font-size:16px; margin-right:5px;">wifi</span> Sistema online
+            </span>
+        </div>
+
+        <!-- Card stato corrente -->
+        <div class="card card-alert p-5 mb-5 bg-white position-relative overflow-hidden">
+            <div class="position-absolute top-0 end-0 p-3 opacity-10">
+                <span class="material-icons" style="font-size: 150px; color: #e2e8f0;">waves</span>
+            </div>
+            <div class="d-flex align-items-center position-relative">
+                <span class="material-icons" style="font-size: 80px; color: #FF9800; transition: color 0.3s;" id="current-icon">warning_amber</span>
+                <div class="ms-5">
+                    <small class="text-secondary fw-bold text-uppercase ls-1">Stato attivo corrente</small>
+                    <h1 class="fw-bold m-0 display-5" style="color: #FF9800; transition: color 0.3s;" id="current-text">Livello 2 - Allarme</h1>
+                    <div class="mt-2 d-flex align-items-center text-muted">
+                        <span class="material-icons me-1" style="font-size: 18px;">place</span>
+                        <span class="fst-italic" id="current-zone">Zona: --</span>
+                        <span class="mx-2">•</span>
+                        <span class="small" id="last-update-text">Ultimo aggiornamento: Oggi, 10:30</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h5 class="mb-4 fw-bold text-dark border-bottom pb-2">Seleziona nuovo livello</h5>
+
+        <div class="row g-4">
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 shadow-sm border-0 level-card"
+                     onclick="openLevelModal('Nessuna carenza', '#4CAF50', 'water_drop', 'none')"
+                     style="border-left: 6px solid #4CAF50 !important;">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5 class="fw-bold m-0" style="color: #4CAF50;">Nessuna carenza</h5>
+                            <span class="material-icons" style="color: #4CAF50;">water_drop</span>
+                        </div>
+                        <p class="small text-muted mb-0 lh-sm">Consumo idrico normale.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 shadow-sm border-0 level-card"
+                     onclick="openLevelModal('Livello 1 - Monitoraggio', '#F9A825', 'info', 'level1')"
+                     style="border-left: 6px solid #F9A825 !important;">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5 class="fw-bold m-0" style="color: #F9A825;">Livello 1</h5>
+                            <span class="material-icons" style="color: #F9A825;">info</span>
+                        </div>
+                        <p class="small text-muted mb-0 lh-sm"><strong>Monitoraggio:</strong> Riduzione del 5% della domanda idrica.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 shadow-sm border-0 level-card"
+                     onclick="openLevelModal('Livello 2 - Allarme', '#FF9800', 'warning_amber', 'level2')"
+                     style="border-left: 6px solid #FF9800 !important;">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5 class="fw-bold m-0" style="color: #FF9800;">Livello 2</h5>
+                            <span class="material-icons" style="color: #FF9800;">warning_amber</span>
+                        </div>
+                        <p class="small text-muted mb-0 lh-sm"><strong>Allarme:</strong> Riduzione del 5%/15% della domanda idrica.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card h-100 shadow-sm border-0 level-card"
+                     onclick="openLevelModal('Livello 3 - Avviso di carenza', '#D32F2F', 'report', 'level3')"
+                     style="border-left: 6px solid #D32F2F !important;">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between mb-3">
+                            <h5 class="fw-bold m-0" style="color: #D32F2F;">Livello 3</h5>
+                            <span class="material-icons" style="color: #D32F2F;">report</span>
+                        </div>
+                        <p class="small text-muted mb-0 lh-sm"><strong>Avviso:</strong> Riduzione del 10%/30% della domanda idrica.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEZIONE: COMUNICAZIONI -->
+    <div id="section-comunicazioni" style="display: none;">
+        <h2 class="mb-4 fw-bold text-dark">Invia comunicazione</h2>
+        <div class="card card-alert p-5 bg-white">
+            <div class="row g-4">
+                <div class="col-md-8">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary">Titolo notifica</label>
+                        <input id="comm-title" type="text" class="form-control form-control-lg bg-light border-0" placeholder="Titolo notifica">
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold text-secondary">Messaggio</label>
+                        <textarea id="comm-message" class="form-control bg-light border-0" rows="12" placeholder="Scrivi qui il contenuto della comunicazione..."></textarea>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary">Allegati</label>
+                        <div class="drop-zone" id="drop-zone-comm-attach" onclick="document.getElementById('fileInputCommAttach').click()" style="height: 120px; min-height: 120px;">
+                            <span class="material-icons" style="font-size: 32px; color: #94a3b8;">cloud_upload</span>
+                            <h6 class="mt-2 text-dark fw-bold mb-0" style="font-size: 14px;" id="label-comm-attach">Carica file</h6>
+                            <input type="file" id="fileInputCommAttach" hidden onchange="fileSelected('comm-attach')">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary">Destinatari</label>
+                        <div class="card bg-light border-0 p-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" name="commTargetRadio" id="commRadioAll" checked onclick="toggleCommTarget(false)">
+                                <label class="form-check-label" for="commRadioAll">Invia a tutti gli utenti attivi</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="commTargetRadio" id="commRadioList" onclick="toggleCommTarget(true)">
+                                <label class="form-check-label" for="commRadioList">Carica lista destinatari</label>
+                            </div>
+                        </div>
+
+                        <div class="drop-zone mt-3" id="drop-zone-comm-target" onclick="document.getElementById('fileInputCommTarget').click()" style="display: none; height: 100px; min-height: 100px; border-color: #005BB5;">
+                            <span class="material-icons text-primary" style="font-size: 30px;">list_alt</span>
+                            <h6 class="mt-1 text-primary fw-bold mb-0" style="font-size: 13px;" id="label-comm-target">Lista destinatari</h6>
+                            <input type="file" id="fileInputCommTarget" hidden onchange="fileSelected('comm-target')">
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-lg py-3" style="background-color: #005BB5;" onclick="openSendModal('comm')">
+                            <span class="material-icons align-middle me-2">send</span> PUBBLICA ORA
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SEZIONE: EMERGENZE -->
+    <div id="section-emergenze" style="display: none;">
+        <h2 class="mb-4 fw-bold text-danger">Gestione emergenze</h2>
+
+        <div class="card card-alert p-5 bg-white mb-5 border-2 border-danger border-opacity-10">
+            <div class="row g-4">
+                <div class="col-md-8">
+                    <h5 class="fw-bold mb-3 text-dark">Dettagli allarme</h5>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Oggetto emergenza</label>
+                        <input id="emerg-subject" type="text" class="form-control form-control-lg bg-danger bg-opacity-10 border-0 text-danger fw-bold" placeholder="Es. CALO DI PRESSIONE - ZONA NORD">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary">Testo allarme (notifica push)</label>
+                        <textarea id="emerg-message" class="form-control bg-light border-0" rows="8" placeholder="Descrivi l'emergenza in modo chiaro e conciso. Questo testo sarà inviato come notifica urgente."></textarea>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-secondary">Destinatari target (obbligatorio)</label>
+                        <div class="drop-zone danger" id="drop-zone-emerg-target" onclick="document.getElementById('fileInputEmergTarget').click()" style="height: 120px; min-height: 120px;">
+                            <span class="material-icons text-danger" style="font-size: 32px;">list_alt</span>
+                            <h6 class="mt-2 text-danger fw-bold mb-0" style="font-size: 14px;" id="label-emerg-target">Lista destinatari (Excel/CSV)</h6>
+                            <input type="file" id="fileInputEmergTarget" hidden onchange="fileSelected('emerg-target')">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold text-secondary">Allegati (facoltativo)</label>
+                        <div class="drop-zone" id="drop-zone-emerg-attach" onclick="document.getElementById('fileInputEmergAttach').click()" style="height: 100px; min-height: 100px;">
+                            <span class="material-icons" style="font-size: 28px; color: #94a3b8;">cloud_upload</span>
+                            <h6 class="mt-1 text-dark fw-bold mb-0" style="font-size: 13px;" id="label-emerg-attach">Aggiungi file</h6>
+                            <input type="file" id="fileInputEmergAttach" hidden onchange="fileSelected('emerg-attach')">
+                        </div>
+                    </div>
+
+                    <div class="alert alert-danger border-0 bg-danger bg-opacity-10 text-danger small mb-3 p-2 text-center">
+                        <span class="material-icons align-middle me-1" style="font-size: 16px;">warning</span>
+                        Notifica ad <strong>ALTA PRIORITÀ</strong>.
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-danger btn-lg py-3" onclick="openSendModal('emerg')">
+                            <span class="material-icons align-middle me-2">notification_important</span> INVIA ALLARME
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <h5 class="fw-bold mb-3 text-dark">Storico allarmi inviati</h5>
+        <div class="list-group card-alert">
+            <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center p-4 border-0 mb-2 shadow-sm rounded-3">
+                <div class="d-flex align-items-center">
+                    <div class="bg-danger bg-opacity-10 text-danger rounded-circle p-3 me-4">
+                        <span class="material-icons" style="font-size: 24px;">priority_high</span>
+                    </div>
+                    <div>
+                        <span class="fw-bold text-dark d-block mb-1">Allarme zona industriale - Calo di pressione</span>
+                        <small class="text-muted">Inviato a 45 utenti • 28/01/2026</small>
+                    </div>
+                </div>
+                <span class="badge bg-success bg-opacity-10 text-success rounded-pill px-3 py-2">Consegnato</span>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL DI CONFERMA -->
+<div id="confirmationModal" class="custom-modal-overlay">
+    <div class="custom-modal-box">
+        <div class="mb-4" id="modal-icon-container"></div>
+        <h3 class="fw-bold mb-3 text-dark" id="modal-title">Conferma</h3>
+        <p class="text-muted mb-4 px-3" style="line-height: 1.6;" id="modal-body"></p>
+        <p class="small text-muted mb-4 bg-light p-2 rounded">
+            <span class="material-icons align-middle" style="font-size: 14px;">notifications_active</span>
+            L'azione sarà notificata immediatamente agli utenti.
+        </p>
+        <div class="d-flex justify-content-center mt-4">
+            <button class="btn-modal btn-cancel" onclick="closeModal()">Annulla</button>
+            <button id="modal-confirm-btn" class="btn-modal btn-confirm" onclick="confirmAction()">CONFERMA</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastNotification" class="toast-notification">
+    <span id="toast-icon" class="material-icons me-3" style="color: #4ade80;">check_circle</span>
+    <span id="toast-message" class="fw-bold">Operazione completata!</span>
+</div>
+
+<script>
+    let currentActionType = "";
+    let pendingLevelText = "", pendingLevelColor = "", pendingLevelIcon = "", pendingLevelKey = "";
+
+    // --- Sessione operatore -------------------------------------------------
+    // Il token sta in sessionStorage e non in localStorage: si chiude il
+    // browser, si esce. Su una postazione condivisa in ente pubblico conta.
+    let authToken = sessionStorage.getItem("primes_token") || null;
+    let currentAdmin = null;
+    let currentAreaId = null;
+
+    function authHeaders(extra) {
+        return Object.assign({ Authorization: "Bearer " + authToken }, extra || {});
+    }
+
+    async function doLogin(event) {
+        event.preventDefault();
+        const btn = document.getElementById("login-btn");
+        const err = document.getElementById("login-error");
+        btn.disabled = true; btn.innerText = "Accesso...";
+        err.classList.add("d-none");
+        try {
+            const res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: document.getElementById("login-user").value.trim(),
+                    password: document.getElementById("login-pass").value,
+                }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Accesso non riuscito");
+            authToken = data.token;
+            sessionStorage.setItem("primes_token", authToken);
+            currentAdmin = data.admin;
+            startDashboard();
+        } catch (e) {
+            err.innerText = e.message;
+            err.classList.remove("d-none");
+        } finally {
+            btn.disabled = false; btn.innerText = "ACCEDI";
+        }
+    }
+
+    function doLogout() {
+        sessionStorage.removeItem("primes_token");
+        authToken = null; currentAdmin = null; currentAreaId = null;
+        document.getElementById("login-overlay").style.display = "flex";
+    }
+
+    function startDashboard() {
+        document.getElementById("login-overlay").style.display = "none";
+        document.getElementById("admin-label").innerText =
+            currentAdmin.name + " - " + currentAdmin.areas.length + " aree";
+
+        const select = document.getElementById("area-select");
+        select.innerHTML = "";
+        (currentAdmin.areaDetails || []).forEach(a => {
+            const opt = document.createElement("option");
+            opt.value = a.id;
+            opt.textContent = a.country + " - " + a.label;
+            select.appendChild(opt);
+        });
+        currentAreaId = select.value;
+        onAreaChange();
+    }
+
+    async function onAreaChange() {
+        currentAreaId = document.getElementById("area-select").value;
+        const opt = document.getElementById("area-select").selectedOptions[0];
+        document.getElementById("current-zone").innerText = "Zona: " + (opt ? opt.textContent : "--");
+        await refreshLevel();
+    }
+
+    /// Allinea la card allo stato reale dell'area: se un altro operatore ha
+    /// cambiato livello, qui si vede senza ricaricare la pagina.
+    async function refreshLevel() {
+        if (!currentAreaId) return;
+        try {
+            const res = await fetch("/api/areas/" + currentAreaId + "/alert-level");
+            const data = await res.json();
+            if (!res.ok) return;
+            const lv = data.alertLevel || {};
+            const label = document.getElementById("current-text");
+            const icon = document.getElementById("current-icon");
+            label.innerText = lv.level || "--";
+            label.style.color = lv.colorHex || "#FF9800";
+            icon.style.color = lv.colorHex || "#FF9800";
+            document.getElementById("last-update-text").innerText = lv.updatedAt
+                ? "Ultimo aggiornamento: " + new Date(lv.updatedAt).toLocaleString("it-IT")
+                : "Nessun aggiornamento registrato";
+        } catch (e) { /* rete assente: si tiene quello mostrato */ }
+    }
+
+    // All'apertura: se c'e' gia' un token valido si salta il login.
+    (async function bootstrap() {
+        if (!authToken) return;
+        try {
+            const res = await fetch("/api/auth/me", { headers: authHeaders() });
+            const data = await res.json();
+            if (!res.ok) throw new Error();
+            currentAdmin = data.admin;
+            startDashboard();
+        } catch (e) {
+            sessionStorage.removeItem("primes_token");
+            authToken = null;
+        }
+    })();
+
+    // Navigazione
+    function showSection(sectionId, linkElement) {
+        document.querySelectorAll('[id^="section-"]').forEach(el => el.style.display = 'none');
+        document.getElementById('section-' + sectionId).style.display = 'block';
+        document.querySelectorAll('.nav-link').forEach(el => el.classList.remove('active'));
+        linkElement.classList.add('active');
+    }
+
+    // Toggle lista destinatari
+    function toggleCommTarget(isList) {
+        const dropZone = document.getElementById('drop-zone-comm-target');
+        dropZone.style.display = isList ? 'flex' : 'none';
+    }
+
+    // Feedback selezione file
+    function fileSelected(type) {
+        let inputId, labelId, zoneId;
+        if (type === 'comm-attach') {
+            inputId = 'fileInputCommAttach'; labelId = 'label-comm-attach'; zoneId = 'drop-zone-comm-attach';
+        } else if (type === 'comm-target') {
+            inputId = 'fileInputCommTarget'; labelId = 'label-comm-target'; zoneId = 'drop-zone-comm-target';
+        } else if (type === 'emerg-target') {
+            inputId = 'fileInputEmergTarget'; labelId = 'label-emerg-target'; zoneId = 'drop-zone-emerg-target';
+        } else if (type === 'emerg-attach') {
+            inputId = 'fileInputEmergAttach'; labelId = 'label-emerg-attach'; zoneId = 'drop-zone-emerg-attach';
+        }
+        const fileInput = document.getElementById(inputId);
+        const label = document.getElementById(labelId);
+        const zone = document.getElementById(zoneId);
+        if (fileInput.files.length > 0) {
+            label.innerText = fileInput.files[0].name;
+            zone.classList.add('file-loaded');
+        }
+    }
+
+    // Apri modal cambio livello
+    // `key` e' la chiave canonica del livello (none/level1/level2/level3).
+    // L'app la usa per mostrare il nome che il referente dell'area ha scritto
+    // nel form: senza, un'app croata scriverebbe "Livello 2 - Allarme".
+    function openLevelModal(text, color, iconName, key) {
+        currentActionType = "level";
+        pendingLevelText = text;
+        pendingLevelColor = color;
+        pendingLevelIcon = iconName;
+        pendingLevelKey = key || "";
+
+        updateModalUI(
+            color, iconName, "Cambio livello idrico",
+            `Stai per impostare lo stato idrico a:<br><strong class="d-block mt-2 display-6 fw-bold" style="color:${color}">${text}</strong>`,
+            "btn-confirm-level", "CONFERMA CAMBIO"
+        );
+        document.getElementById('confirmationModal').style.display = 'flex';
+    }
+
+    // Apri modal invio (con validazione)
+    function openSendModal(type) {
+        currentActionType = type;
+        let color, icon, title, body, btnClass, btnText;
+
+        if (type === 'comm') {
+            const isListMode = document.getElementById('commRadioList').checked;
+            const fileInput = document.getElementById('fileInputCommTarget');
+            if (isListMode && fileInput.files.length === 0) {
+                showToast('Errore: hai selezionato "Carica lista destinatari" ma non hai caricato nessun file.', true);
+                return;
+            }
+            color = "#005BB5"; icon = "send"; title = "Invia comunicazione";
+            body = "Sei sicuro di voler pubblicare questa notizia?<br>Sarà visibile nella sezione 'Articoli' dell'app.";
+            btnClass = "btn-confirm-comm"; btnText = "PUBBLICA ORA";
+        } else if (type === 'emerg') {
+            const fileInput = document.getElementById('fileInputEmergTarget');
+            if (fileInput.files.length === 0) {
+                showToast('Errore: il caricamento della lista destinatari è obbligatorio.', true);
+                return;
+            }
+            color = "#D32F2F"; icon = "warning"; title = "INVIA ALLARME";
+            body = "<strong>ATTENZIONE:</strong> Stai per inviare una notifica d'emergenza alla lista caricata.";
+            btnClass = "btn-confirm-emerg"; btnText = "CONFERMA EMERGENZA";
+        }
+
+        updateModalUI(color, icon, title, body, btnClass, btnText);
+        document.getElementById('confirmationModal').style.display = 'flex';
+    }
+
+    function updateModalUI(color, iconName, title, bodyHTML, btnClass, btnText) {
+        const iconContainer = document.getElementById('modal-icon-container');
+        iconContainer.style.color = color;
+        iconContainer.innerHTML = `<div style="background-color: ${color}20; display:inline-block; padding:20px; border-radius:50%;"><span class="material-icons" style="font-size: 40px;">${iconName}</span></div>`;
+        document.getElementById('modal-title').innerText = title;
+        document.getElementById('modal-body').innerHTML = bodyHTML;
+        const btn = document.getElementById('modal-confirm-btn');
+        btn.className = `btn-modal ${btnClass}`;
+        btn.innerText = btnText;
+    }
+
+    function closeModal() {
+        document.getElementById('confirmationModal').style.display = 'none';
+    }
+
+    async function confirmAction() {
+        closeModal();
+
+        if (currentActionType === 'level') {
+            // Aggiorna UI locale
+            const label = document.getElementById('current-text');
+            const icon = document.getElementById('current-icon');
+            label.style.opacity = 0; icon.style.opacity = 0;
+            setTimeout(() => {
+                label.innerText = pendingLevelText;
+                label.style.color = pendingLevelColor;
+                icon.innerText = pendingLevelIcon;
+                icon.style.color = pendingLevelColor;
+                label.style.opacity = 1; icon.style.opacity = 1;
+                const now = new Date();
+                const ts = `${now.toLocaleDateString('it-IT')} ${now.toLocaleTimeString('it-IT', {hour:'2-digit', minute:'2-digit'})}`;
+                document.getElementById('last-update-text').innerText = `Ultimo aggiornamento: ${ts}`;
+            }, 300);
+
+            // Invia al backend → propaga all'app via WebSocket
+            try {
+                await sendAlertLevelBackend(pendingLevelText, pendingLevelColor, pendingLevelKey);
+                showToast('Livello aggiornato e notificato agli utenti!', false);
+            } catch (error) {
+                showToast('Livello aggiornato localmente, invio fallito: ' + error.message, true);
+            }
+            return;
+        }
+
+        let payload;
+        if (currentActionType === 'comm') {
+            payload = getCommPayload();
+        } else if (currentActionType === 'emerg') {
+            payload = getEmergPayload();
+        }
+
+        if (!payload) {
+            showToast('Impossibile costruire il payload della notifica.', true);
+            return;
+        }
+
+        try {
+            await sendNotificationBackend(payload);
+            if (currentActionType === 'comm') {
+                showToast('Comunicazione inviata!', false);
+            } else {
+                showToast('ALLARME D\'EMERGENZA INVIATO!', false);
+            }
+        } catch (error) {
+            showToast(error.message, true);
+        }
+    }
+
+    function getCommPayload() {
+        const title = document.getElementById('comm-title').value.trim();
+        const message = document.getElementById('comm-message').value.trim();
+        const isListMode = document.getElementById('commRadioList').checked;
+        const targetFile = document.getElementById('fileInputCommTarget').files[0];
+        return {
+            type: 'communication',
+            title: title || 'Nuova comunicazione',
+            message: message || 'Nessun contenuto del messaggio.',
+            target: isListMode ? 'list' : 'all',
+            attachFile: document.getElementById('fileInputCommAttach').files[0] || null,
+            targetFile: isListMode ? targetFile : null,
+        };
+    }
+
+    function getEmergPayload() {
+        const title = document.getElementById('emerg-subject').value.trim();
+        const message = document.getElementById('emerg-message').value.trim();
+        const targetFile = document.getElementById('fileInputEmergTarget').files[0];
+        return {
+            type: 'emergency',
+            title: title || 'Allarme d\'emergenza',
+            message: message || 'Notifica urgente senza testo.',
+            target: targetFile ? 'list' : 'all',
+            attachFile: document.getElementById('fileInputEmergAttach').files[0] || null,
+            targetFile: targetFile || null,
+        };
+    }
+
+    async function sendAlertLevelBackend(level, colorHex, key) {
+        if (!currentAreaId) throw new Error('Nessuna area pilota selezionata.');
+        const response = await fetch('/api/areas/' + currentAreaId + '/alert-level', {
+            method: 'PUT',
+            headers: authHeaders({ 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ level, colorHex, key }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Errore backend');
+        await refreshLevel();
+        return data;
+    }
+
+    async function sendNotificationBackend(payload) {
+        if (!currentAreaId) throw new Error('Nessuna area pilota selezionata.');
+
+        // multipart: cosi' l'allegato viaggia con la notifica e il backend lo
+        // pubblica anche fra i documenti dell'area.
+        const form = new FormData();
+        form.append('type', payload.type);
+        form.append('title', payload.title);
+        form.append('message', payload.message);
+        form.append('target', payload.target);
+        if (payload.attachFile) form.append('attachment', payload.attachFile);
+        if (payload.targetFile) form.append('recipients', payload.targetFile);
+
+        const response = await fetch('/api/areas/' + currentAreaId + '/notifications', {
+            method: 'POST',
+            headers: authHeaders(),   // niente Content-Type: lo mette il browser
+            body: form,
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Errore backend');
+        return data;
+    }
+
+    function showToast(message, isError) {
+        const toast = document.getElementById('toastNotification');
+        const icon = document.getElementById('toast-icon');
+        const msg = document.getElementById('toast-message');
+        msg.innerText = message;
+        if (isError) {
+            toast.classList.add('error');
+            icon.innerText = 'error_outline';
+            icon.style.color = 'white';
+        } else {
+            toast.classList.remove('error');
+            icon.innerText = 'check_circle';
+            icon.style.color = '#4ade80';
+        }
+        toast.classList.add('show');
+        setTimeout(() => { toast.classList.remove('show'); }, 3500);
+    }
+
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('confirmationModal')) closeModal();
+    }
+</script>
+</body>
+</html>

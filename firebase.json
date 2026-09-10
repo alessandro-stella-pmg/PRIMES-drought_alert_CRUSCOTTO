@@ -1,0 +1,34 @@
+{
+  "hosting": {
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**",
+      "**/server.js",
+      "**/package*.json",
+      "**/README.md",
+      "_legacy_demo/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/api/**",
+        "run": {
+          "serviceId": "primes-backend",
+          "region": "europe-west8"
+        }
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(js|css|png|jpg|svg)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600"
+          }
+        ]
+      }
+    ]
+  }
+}
